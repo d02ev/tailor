@@ -604,3 +604,5 @@ pip-selfcheck.json
 
 # Codex files
 *.codex
+
+*.txt
