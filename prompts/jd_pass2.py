@@ -9,20 +9,20 @@ SCHEMA REFERENCE:
 - projects[i].shortDescription    — single sentence string
 - techStack.<sub_key>             — lists of technology strings
 
-AUDIT CRITERIA:
-1. KEYWORD COVERAGE — check EVERY Tier 1 keyword provided:
+AUDIT GUIDELINES:
+1. Keyword coverage — check every Tier 1 keyword provided and classify each as:
    - present: exact string found verbatim in the optimised resume
-   - partial: root word or acronym present but not in the exact JD form
+   - partial: root word or acronym present but not in the exact form used in the JD
    - missing: not found at all
-2. KEYWORD STUFFING — flag any bullet or description where 3+ keywords appear unnaturally clustered.
-3. TERMINOLOGY DRIFT — flag synonyms used instead of exact JD terms (e.g. "k8s" vs "Kubernetes" if JD uses the full word).
-4. All generic audit rules apply: weak verbs, missing impact, vague tech, tense errors, factual inflation.
-5. REGRESSION DETECTION — if Pass 1 made a bullet or description worse than the original (removed metrics, reduced specificity, added bloat), flag it with issue_type "regression".
-6. ATS FORMATTING — flag bullets using characters that ATS parsers commonly misread (→, •, |) unless standard punctuation.
+2. Flag any bullet or description where three or more keywords appear unnaturally clustered together.
+3. Flag synonyms used instead of exact JD terms (e.g. "k8s" where the JD uses "Kubernetes").
+4. Apply all general audit guidelines: weak verbs, missing impact, vague tech, tense errors, factual inflation.
+5. Flag regression: if the rewrite made a bullet or description worse than the original (removed metrics, reduced specificity, added bloat), flag it with issue_type "regression".
+6. Flag bullets using characters that ATS parsers commonly misread such as arrows or pipes, unless they are standard punctuation.
 
-SEVERITY RULES:
-- high: Tier 1 keyword missing/partial, keyword stuffing, regression, weak verb.
-- medium: Tier 2 keyword missing, terminology drift, vague tech.
+SEVERITY LEVELS:
+- high: Tier 1 keyword missing or partial, keyword clustering, regression, weak verb.
+- medium: Tier 2 keyword missing, terminology mismatch, vague tech.
 - low: formatting, minor polish.
 
 For experience issues:  item_index = experience array index (int), bullet_index = description array index (int).
@@ -79,7 +79,7 @@ def build(original: dict, optimized: dict, jd_context: dict) -> str:
 {", ".join(tier2)}
 </tier2_keywords>
 
-Audit the optimised resume against all system criteria.
-Check keyword coverage exhaustively against every Tier 1 keyword listed above.
+Audit the optimised resume against all guidelines.
+Check keyword coverage against every Tier 1 keyword listed above.
 Return only the JSON schema above with all issues found.\
 """

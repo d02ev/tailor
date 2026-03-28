@@ -43,7 +43,7 @@ def fetch_projects() -> list[dict]:
 
     Returns the inner "data" list only.
     """
-    project_api_url = f"{settings.api_base_url}/projects"
+    project_api_url = f"{settings.api_base_url}/project"
     body = _get(project_api_url)
     if "data" not in body:
         raise KeyError(

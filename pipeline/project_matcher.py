@@ -11,7 +11,7 @@ from openai import OpenAI
 from config import settings
 
 client = OpenAI(
-    base_url="https://models.inference.ai.azure.com",
+    base_url="https://models.github.ai/inference",
     api_key=settings.github_access_token,
 )
 

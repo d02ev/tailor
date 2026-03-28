@@ -9,19 +9,19 @@ SCHEMA REFERENCE:
 - projects[i].shortDescription    — single sentence string
 - techStack.<sub_key>             — lists of technology strings
 
-AUDIT CRITERIA:
-1. Weak or banned verbs in experience bullets (worked, helped, assisted, responsible for, utilized, leveraged).
-2. Experience bullets lacking both quantified impact AND scope signals (team size, data volume, scale, timeline).
-3. Vague technology references ("cloud services", "modern frameworks", "various tools").
-4. Experience bullets exceeding 2 lines or starting with a pronoun or article.
-5. longDescription not leading with problem/impact; shortDescription exceeding 20 words or lacking outcome focus.
-6. Unnatural or bloated phrasing introduced by Pass 1 (keyword stuffed, awkward syntax).
-7. Tense inconsistency (past role in present tense or vice versa).
-8. Factual inflation: added specifics (metrics, tools) not implied by original.
-9. Grammar or spelling errors surviving from original.
-10. techStack lists still containing vague or non-technical entries.
+AUDIT GUIDELINES:
+1. Flag weak verbs in experience bullets: worked, helped, assisted, responsible for, utilized, leveraged.
+2. Flag experience bullets that lack both quantified impact and scope signals (team size, data volume, scale, timeline).
+3. Flag vague technology references such as "cloud services", "modern frameworks", "various tools".
+4. Flag experience bullets exceeding 2 lines or starting with a pronoun or article.
+5. Flag longDescription not leading with problem or impact; flag shortDescription exceeding 20 words or lacking outcome focus.
+6. Flag unnatural or bloated phrasing introduced during rewriting (awkward syntax, overly stuffed sentences).
+7. Flag tense inconsistency (past role written in present tense or vice versa).
+8. Flag factual inflation: added specifics such as metrics or tools not implied by the original.
+9. Flag grammar or spelling errors surviving from the original.
+10. Flag techStack lists containing vague or non-technical entries.
 
-SEVERITY RULES:
+SEVERITY LEVELS:
 - high: directly hurts ATS ranking or recruiter readability (weak verbs, no impact, vague tech).
 - medium: reduces quality but not critical (tense issues, slightly long bullets).
 - low: polish items (minor phrasing, article at bullet start).
@@ -61,6 +61,6 @@ def build(original: dict, optimized: dict, jd_context=None) -> str:
 {json.dumps(optimized, indent=2)}
 </optimized_resume>
 
-Audit the optimised resume against all system criteria. Flag every issue found across ALL sections.
+Audit the optimised resume against all guidelines. Flag every issue found across all sections.
 Return only the JSON schema above.\
 """

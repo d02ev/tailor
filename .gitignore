@@ -2,6 +2,8 @@
 .env
 .env.development
 .env.production
+assets/resume.json
+assets/*_CV.docx
 
 ### Linux ###
 *~
@@ -599,3 +601,6 @@ $RECYCLE.BIN/
 pyvenv.cfg
 .venv
 pip-selfcheck.json
+
+# Codex files
+*.codex
