@@ -46,7 +46,7 @@ def run_pass2(
     response = client.chat.completions.create(
         model=settings.model,
         response_format={"type": "json_object"},
-        temperature=0.2,
+        temperature=0,
         max_tokens=2048,
         messages=[
             {"role": "system", "content": system_prompt},
