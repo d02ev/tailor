@@ -20,7 +20,8 @@ def _call_llm(system: str, user: str) -> dict:
     response = client.chat.completions.create(
         model=settings.model,
         response_format={"type": "json_object"},
-        temperature=0.3,
+        temperature=0.1,
+        seed=42,
         max_tokens=2048,
         messages=[
             {"role": "system", "content": system},

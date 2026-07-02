@@ -8,13 +8,13 @@ JD-based optimisation — --jd flag triggers the full JD pipeline:
     tailor --jd google_swe.txt --company-name Google
     tailor --jd google_swe.txt --company-name Google --template-id abc123 --resume-name "Google SWE 2025"
 
-JD-based optimisation + CV generation:
-    tailor --jd google_swe.txt --company-name Google --cv
+JD-based optimisation + Cover Letter generation:
+    tailor --jd google_swe.txt --company-name Google --cover-letter
 
 --template-id and --resume-name are optional for both modes;
 if omitted the CLI will prompt interactively before publishing.
 --company-name is REQUIRED when --jd is provided.
---cv is only valid when --jd is provided.
+--cover-letter is only valid when --jd is provided.
 """
 
 import typer
@@ -28,6 +28,9 @@ from rich.prompt import Prompt
 app     = typer.Typer(add_completion=False, pretty_exceptions_enable=False)
 console = Console()
 
+
+# ── UI helpers ────────────────────────────────────────────────────────────────
+
 def _print_header(mode_label: str) -> None:
     title    = Text("tailor", style="bold cyan")
     subtitle = Text(f"Mode: {mode_label}", style="dim white")
@@ -35,7 +38,11 @@ def _print_header(mode_label: str) -> None:
     console.print()
 
 
-def _print_ats_scores(baseline: dict, post_p1: dict) -> None:
+def _print_ats_scores(baseline: dict, post_p1: dict) -> dict:
+    """
+    Renders the ATS score comparison table and returns the score_delta dict
+    so the caller can check for regressions.
+    """
     from pipeline.scorer import score_delta
     delta  = score_delta(baseline, post_p1)
     sign   = "+" if delta["composite_delta"] >= 0 else ""
@@ -56,6 +63,7 @@ def _print_ats_scores(baseline: dict, post_p1: dict) -> None:
             f"\n  [dim]Still missing:[/dim] [red]{', '.join(post_p1['missing_keywords'])}[/red]"
         )
     console.print()
+    return delta
 
 
 def _print_review_summary(review: dict, is_jd: bool) -> None:
@@ -93,11 +101,6 @@ def _resolve_output_meta(
     template_id: str | None,
     resume_name: str | None,
 ) -> tuple[str, str]:
-    """
-    Returns (template_id, resume_name).
-    Prompts interactively for any value not supplied via CLI flag.
-    Runs after the approval loop so the user is not interrupted mid-review.
-    """
     console.print(Rule("[bold]Output Configuration[/bold]"))
 
     if not template_id:
@@ -123,28 +126,7 @@ def _resolve_output_meta(
     return template_id, resume_name
 
 
-def _resolve_resume_name_for_cv(resume_name: str | None) -> str:
-    """
-    Ensures resume_name is available before CV generation.
-    Prompts once when --cv is used without --resume-name.
-    """
-    if resume_name:
-        return resume_name
-
-    resolved = Prompt.ask(
-        "  [bold]Resume Name[/bold] [dim](label for this optimised version)[/dim]"
-    ).strip()
-    if not resolved:
-        console.print("[red]Error:[/red] Resume name cannot be empty.")
-        raise typer.Exit(1)
-    return resolved
-
-
 def _review_final_resume(final_resume: dict) -> tuple[dict, Path]:
-    """
-    Writes final resume JSON to project assets storage for manual edits and returns
-    the validated, edited resume plus the review file path.
-    """
     from pipeline.review_checkpoint import write_review_file, load_reviewed_resume
 
     review_path = write_review_file(final_resume)
@@ -185,6 +167,8 @@ def _review_final_resume(final_resume: dict) -> tuple[dict, Path]:
             )
 
 
+# ── Main command ──────────────────────────────────────────────────────────────
+
 @app.command()
 def optimize(
     jd: str = typer.Option(
@@ -201,14 +185,14 @@ def optimize(
         "--company-name",
         help="Company name for the role. Required when --jd is provided.",
     ),
-    cv: bool = typer.Option(
+    cover_letter: bool = typer.Option(
         False,
-        "--cv",
+        "--cover-letter",
         is_flag=True,
         help=(
-            "Generate a tailored CV after optimisation. "
+            "Generate a cover letter after optimisation. "
             "Only valid when --jd is provided. "
-            "CV is displayed in the terminal and saved as a .docx file in assets/."
+            "Cover letter is displayed in the terminal and saved as a .docx file."
         ),
     ),
     template_id: str = typer.Option(
@@ -232,28 +216,28 @@ def optimize(
         )
         raise typer.Exit(1)
 
-    if cv and not is_jd:
+    if cover_letter and not is_jd:
         console.print(
-            "[red]Error:[/red] --cv requires --jd to be provided.\n"
-            "[dim]Example: tailor --jd google_swe.txt --company-name Google --cv[/dim]"
+            "[red]Error:[/red] --cover-letter requires --jd to be provided.\n"
+            "[dim]Example: tailor --jd google_swe.txt --company-name Google --cover-letter[/dim]"
         )
         raise typer.Exit(1)
 
     mode_parts = [f"JD — {company_name}" if is_jd else "Generic"]
-    if cv:
-        mode_parts.append("+ CV")
+    if cover_letter:
+        mode_parts.append("+ Cover Letter")
     _print_header("  ·  ".join(mode_parts))
 
-    # ── Deferred imports (keeps --help instant) ───────────────────────────────
-    from pipeline.loader             import fetch_resume, fetch_projects
-    from pipeline.jd_parser          import parse_jd
-    from pipeline.scorer             import ats_score
-    from pipeline.project_matcher    import match_and_inject
-    from pipeline.pass1_optimizer    import run_pass1
-    from pipeline.pass2_reviewer     import run_pass2
-    from pipeline.approver           import run_approval_loop
-    from pipeline.publisher          import publish_resume
-    from pipeline.review_checkpoint  import cleanup_review_file
+    # ── Deferred imports ──────────────────────────────────────────────────────
+    from pipeline.loader            import fetch_resume, fetch_projects
+    from pipeline.jd_parser         import parse_jd
+    from pipeline.scorer            import ats_score
+    from pipeline.project_matcher   import match_and_inject
+    from pipeline.pass1_optimizer   import run_pass1
+    from pipeline.pass2_reviewer    import run_pass2
+    from pipeline.approver          import run_approval_loop
+    from pipeline.publisher         import publish_resume
+    from pipeline.review_checkpoint import cleanup_review_file
 
     # ── Step 1: Fetch resume ──────────────────────────────────────────────────
     console.print("[cyan]→[/cyan] Fetching resume from API...")
@@ -268,6 +252,7 @@ def optimize(
     jd_context = None
     jd_text    = None
     baseline   = None
+    post_p1    = None
 
     if is_jd:
         # Step 2a: Parse JD
@@ -308,14 +293,48 @@ def optimize(
         raise typer.Exit(1)
     console.print("[green]✓[/green] Pass 1 complete.\n")
 
+    # ── Step 3b: ATS regression check (JD mode only) ─────────────────────────
     if is_jd:
         post_p1 = ats_score(optimized, jd_context["all_keywords"])
-        _print_ats_scores(baseline, post_p1)
+        delta   = _print_ats_scores(baseline, post_p1)
+
+        if delta["composite_delta"] < 0:
+            console.print(
+                "[bold yellow]⚠ ATS score declined after Pass 1 "
+                f"({delta['composite_delta']:+.1f}).[/bold yellow]\n"
+                "  The original resume already scores higher for this JD.\n"
+                "  Skipping Pass 2, approval, and publish.\n"
+            )
+
+            # Still generate the cover letter if requested — it uses the
+            # original resume which is the stronger version for this JD
+            if cover_letter:
+                from pipeline.cover_letter_generator import generate_cover_letter
+                console.print(Rule("[bold]Cover Letter Generation[/bold]"))
+                try:
+                    generate_cover_letter(
+                        resume=resume,      # original, not optimized
+                        jd_text=jd_text,
+                        jd_context=jd_context,
+                        company_name=company_name,
+                    )
+                except Exception as e:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Cover letter generation failed: {e}\n"
+                    )
+
+            raise typer.Exit(0)
 
     # ── Step 4: Pass 2 — Quality review ──────────────────────────────────────
     console.print("[cyan]→[/cyan] Running Pass 2 (quality review)...")
     try:
-        review = run_pass2(resume, optimized, "jd" if is_jd else "generic", jd_context)
+        review = run_pass2(
+            original=resume,
+            optimized=optimized,
+            mode="jd" if is_jd else "generic",
+            jd_context=jd_context,
+            ats_scores=post_p1,     # None in generic mode — scorer not run
+        )
     except Exception as e:
         console.print(f"[red]Pass 2 failed:[/red] {e}")
         raise typer.Exit(1)
@@ -326,23 +345,19 @@ def optimize(
     # ── Step 5: Interactive approval ──────────────────────────────────────────
     final = run_approval_loop(optimized, review["issues"])
 
-    # ── Step 6: CV generation (optional, JD mode only) ───────────────────────
-    # Runs before the manual review checkpoint so the CV uses the
-    # AI-approved resume state. Non-fatal — resume publish continues on failure.
-    if cv:
-        resume_name = _resolve_resume_name_for_cv(resume_name)
-        from pipeline.cv_generator import generate_cv
-        console.print(Rule("[bold]CV Generation[/bold]"))
+    # ── Step 6: Cover letter generation (optional, JD mode only) ─────────────
+    if cover_letter:
+        from pipeline.cover_letter_generator import generate_cover_letter
+        console.print(Rule("[bold]Cover Letter Generation[/bold]"))
         try:
-            generate_cv(
+            generate_cover_letter(
                 resume=final,
                 jd_text=jd_text,
                 jd_context=jd_context,
                 company_name=company_name,
-                resume_name=resume_name,
             )
         except Exception as e:
-            console.print(f"[yellow]Warning:[/yellow] CV generation failed: {e}\n")
+            console.print(f"[yellow]Warning:[/yellow] Cover letter generation failed: {e}\n")
 
     # ── Step 7: Manual resume review checkpoint ───────────────────────────────
     reviewed_resume, review_path = _review_final_resume(final)

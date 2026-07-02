@@ -18,8 +18,8 @@ from config import settings
 from prompts import cv_prompt
 
 client  = OpenAI(
-    base_url="https://models.inference.ai.azure.com",
-    api_key=settings.github_models_api_key,
+    base_url="https://models.github.ai/inference",
+    api_key=settings.github_access_token,
 )
 console = Console()
 
