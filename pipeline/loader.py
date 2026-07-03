@@ -31,7 +31,25 @@ def fetch_resume() -> dict:
         raise KeyError(
             f"Expected 'data' key in resume API response. Got: {list(body.keys())}"
         )
-    return body["data"]
+    return _validate_resume(body["data"])
+
+
+def _validate_resume(data) -> dict:
+    """
+    Fail early with a clear message if the API returns something the pipeline
+    can't optimise, rather than surfacing an AttributeError deep in Pass 1.
+    """
+    if not isinstance(data, dict):
+        raise TypeError(
+            f"Expected resume 'data' to be an object, got {type(data).__name__}"
+        )
+    rewriteable = {"experience", "projects", "techStack"}
+    if not rewriteable & data.keys():
+        raise ValueError(
+            "Resume 'data' has none of the expected rewriteable sections "
+            f"({', '.join(sorted(rewriteable))}). Got keys: {list(data.keys())}"
+        )
+    return data
 
 
 def fetch_projects() -> list[dict]:

@@ -97,6 +97,30 @@ def _get_models():
     return _kw_model, _nlp
 
 
+def _assign_tiers(deduped):
+    """
+    Split keywords into three tiers.
+
+    KeyBERT score distributions vary widely between JDs, so the fixed absolute
+    thresholds sometimes leave Tier 1 empty (or dump everything into it). We apply
+    the absolute cutoffs first, then fall back to a rank-percentile split (top 30%
+    → Tier 1, next 40% → Tier 2) whenever the absolute split produces an empty
+    Tier 1 while keywords exist — keeping tiering stable across JDs.
+    """
+    tier1 = [(kw, s) for kw, s in deduped if s >= TIER1_THRESHOLD]
+    tier2 = [(kw, s) for kw, s in deduped if TIER2_THRESHOLD <= s < TIER1_THRESHOLD]
+    tier3 = [(kw, s) for kw, s in deduped if s < TIER2_THRESHOLD]
+
+    if not tier1 and deduped:
+        ranked = sorted(deduped, key=lambda x: x[1], reverse=True)
+        n = len(ranked)
+        t1_end = max(1, round(n * 0.30))
+        t2_end = max(t1_end, round(n * 0.70))
+        tier1, tier2, tier3 = ranked[:t1_end], ranked[t1_end:t2_end], ranked[t2_end:]
+
+    return tier1, tier2, tier3
+
+
 def _clean_jd(text: str) -> str:
     """Strip boilerplate lines and normalise whitespace."""
     lines = [l.strip() for l in text.splitlines() if l.strip()]
@@ -148,9 +172,7 @@ def parse_jd(jd_text: str, resume: dict | None = None) -> dict:
             deduped.append((kw.lower(), round(score, 4)))
 
     # Tier assignment
-    tier1 = [(kw, s) for kw, s in deduped if s >= TIER1_THRESHOLD]
-    tier2 = [(kw, s) for kw, s in deduped if TIER2_THRESHOLD <= s < TIER1_THRESHOLD]
-    tier3 = [(kw, s) for kw, s in deduped if s < TIER2_THRESHOLD]
+    tier1, tier2, tier3 = _assign_tiers(deduped)
 
     # Keyword classification — applied across all tiers
     classified: dict[str, list[tuple[str, float]]] = {

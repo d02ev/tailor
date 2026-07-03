@@ -1,34 +1,33 @@
 """
 Pass 1 — LLM-powered resume optimisation.
-Processes each rewriteable section independently to keep token usage low
-and output schema predictable.
+
+Rewrites the entire resume in a SINGLE LLM call (rather than one call per section).
+On the free tier this is the biggest quota saving: a JD run drops from ~6-8 calls to
+~3-4. Each returned section is shape-validated before it replaces the original, so a
+malformed or missing key falls back to the untouched section instead of corrupting it.
 """
 
-import json
-from openai import OpenAI
-from config import settings
+import copy
+
+from pipeline import llm_client
 from pipeline.utils import REWRITEABLE_SECTIONS
 from prompts import generic_pass1, jd_pass1
 
-client = OpenAI(
-    base_url="https://models.github.ai/inference",
-    api_key=settings.github_access_token,
-)
 
-
-def _call_llm(system: str, user: str) -> dict:
-    response = client.chat.completions.create(
-        model=settings.model,
-        response_format={"type": "json_object"},
-        temperature=0.1,
-        seed=42,
-        max_tokens=2048,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user",   "content": user},
-        ],
-    )
-    return json.loads(response.choices[0].message.content)
+def _shape_ok(section_key: str, original, candidate) -> bool:
+    """Guard against the model returning null / wrong-typed sections."""
+    if candidate is None:
+        return False
+    if section_key == "professionalSummary":
+        return isinstance(candidate, str) and candidate.strip() != ""
+    # For structured sections the type must match the original (list ↔ list, dict ↔ dict).
+    if original is not None and type(candidate) is not type(original):
+        return False
+    if section_key in ("experience", "projects"):
+        return isinstance(candidate, list) and len(candidate) == len(original or [])
+    if section_key == "techStack":
+        return isinstance(candidate, dict)
+    return True
 
 
 def run_pass1(
@@ -38,37 +37,34 @@ def run_pass1(
 ) -> dict:
     """
     Returns a mutated copy of the resume with all rewriteable sections
-    optimised by the LLM.
+    (plus a generated professionalSummary) optimised in one LLM call.
 
     Args:
         resume:     Original resume dict from the source API.
         mode:       "generic" or "jd".
         jd_context: Output of jd_parser.parse_jd() — required when mode="jd".
     """
-    import copy
     optimized = copy.deepcopy(resume)
 
-    system_prompt = jd_pass1.SYSTEM if mode == "jd" else generic_pass1.SYSTEM
+    if mode == "jd":
+        system_prompt = jd_pass1.SYSTEM
+        user_prompt   = jd_pass1.build(resume, jd_context)
+    else:
+        system_prompt = generic_pass1.SYSTEM
+        user_prompt   = generic_pass1.build(resume)
 
-    for section_key in REWRITEABLE_SECTIONS:
-        if section_key not in resume:
-            continue
+    result = llm_client.chat_json(
+        system_prompt,
+        user_prompt,
+        temperature=0.1,
+        max_tokens=4096,   # whole-resume rewrite needs more headroom than one section
+        seed=42,
+    )
 
-        if mode == "jd":
-            user_prompt = jd_pass1.build(
-                section_key=section_key,
-                section_data=resume[section_key],
-                jd_context=jd_context,
-            )
-        else:
-            user_prompt = generic_pass1.build(
-                section_key=section_key,
-                section_data=resume[section_key],
-            )
-
-        result = _call_llm(system_prompt, user_prompt)
-
-        if section_key in result:
-            optimized[section_key] = result[section_key]
+    # professionalSummary is generated even when absent from the source resume.
+    for section_key in [*REWRITEABLE_SECTIONS, "professionalSummary"]:
+        candidate = result.get(section_key)
+        if _shape_ok(section_key, resume.get(section_key), candidate):
+            optimized[section_key] = candidate
 
     return optimized

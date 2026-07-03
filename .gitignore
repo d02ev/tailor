@@ -4,6 +4,7 @@
 .env.production
 assets/resume.json
 assets/*_CV.docx
+.tailor_cache/
 
 ### Linux ###
 *~

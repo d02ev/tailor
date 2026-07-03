@@ -19,15 +19,17 @@ In short: it is not just "prompt in, text out"; it is an engineered pipeline for
 ## Key Capabilities
 
 - Resume ingestion from an external API
-- JD parsing with keyword tiering (`Tier 1`, `Tier 2`, `Tier 3`)
-- ATS score baseline vs post-optimization comparison
+- JD parsing with adaptive keyword tiering (`Tier 1`, `Tier 2`, `Tier 3`)
+- ATS scoring with importance-weighted, token/lemma keyword matching (acronym-aware)
 - AI project selection from a full project catalog (JD mode)
+- Generated, summary-first **professional summary** held to senior-resume standards
 - Two-pass LLM pipeline:
-  - Pass 1: rewrite and optimize sections
-  - Pass 2: audit quality and surface structured issues
+  - Pass 1: rewrite and optimize the whole resume in a single call
+  - Pass 2: audit quality (incl. metric-inflation and summary checks) and surface structured issues
 - Interactive approval loop for each suggested fix
 - Manual JSON checkpoint before publishing
 - Optional CV generation (`.docx`) with company-aware context research
+- Free-tier friendly: shared LLM client with retry/backoff, throttling, and response caching
 
 ## End-to-End Flow (JD Mode)
 
@@ -45,8 +47,9 @@ In short: it is not just "prompt in, text out"; it is an engineered pipeline for
 
 - Python + Typer CLI + Rich terminal UX
 - OpenAI-compatible chat completion APIs
-- spaCy + KeyBERT for JD keyword extraction
+- spaCy + KeyBERT for JD keyword extraction and token/lemma ATS matching
 - scikit-learn TF-IDF + cosine similarity for ATS scoring
+- tenacity for LLM retry/backoff on rate-limited free tiers
 - python-docx for CV export
 - httpx for API integrations
 

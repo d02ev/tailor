@@ -19,20 +19,15 @@ The .docx follows a formal business letter layout:
 import re
 from datetime import datetime
 from pathlib import Path
-from openai import OpenAI
 from rich.console import Console
 from rich.rule import Rule
 from rich.panel import Panel
 
 from rich.prompt import Prompt
 
-from config import settings
+from pipeline import llm_client
 from prompts import cover_letter_prompt
 
-client  = OpenAI(
-    base_url="https://models.github.ai/inference",
-    api_key=settings.github_access_token,
-)
 console = Console()
 
 
@@ -45,7 +40,7 @@ def _find_official_website(company_name: str) -> str | None:
     """
     try:
         from duckduckgo_search import DDGS
-        with DDGS() as ddgs:
+        with DDGS(timeout=10) as ddgs:
             results = ddgs.text(f"{company_name} official website", max_results=3)
             for r in results:
                 url = r.get("href", "").strip()
@@ -127,7 +122,7 @@ def _research_company(company_name: str, website_url: str | None = None) -> str:
                 queries.insert(0, f"site:{domain} about engineering")
 
         snippets: list[str] = []
-        with DDGS() as ddgs:
+        with DDGS(timeout=10) as ddgs:
             for query in queries:
                 results = ddgs.text(query, max_results=3)
                 for r in results:
@@ -165,17 +160,12 @@ def _generate_letter(
         company_research=company_research,
     )
 
-    response = client.chat.completions.create(
-        model=settings.model,
+    return llm_client.chat(
+        cover_letter_prompt.SYSTEM,
+        user_prompt,
         temperature=0.5,    # Slightly higher — cover letters benefit from natural prose variation
         max_tokens=1024,    # 4 tight paragraphs never need more than this
-        messages=[
-            {"role": "system", "content": cover_letter_prompt.SYSTEM},
-            {"role": "user",   "content": user_prompt},
-        ],
     )
-
-    return response.choices[0].message.content.strip()
 
 
 # ── Step 3: Terminal render ───────────────────────────────────────────────────

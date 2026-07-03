@@ -16,6 +16,7 @@ dependencies = [
     "rich>=14.3.3",
     "scikit-learn>=1.8.0",
     "spacy>=3.8.13",
+    "tenacity>=9.0.0",
     "typer[all]>=0.24.1",
 ]
 [project.scripts]

@@ -10,17 +10,12 @@ Pipeline:
 
 import re
 from pathlib import Path
-from openai import OpenAI
 from rich.console import Console
 from rich.rule import Rule
 
-from config import settings
+from pipeline import llm_client
 from prompts import cv_prompt
 
-client  = OpenAI(
-    base_url="https://models.github.ai/inference",
-    api_key=settings.github_access_token,
-)
 console = Console()
 
 def _research_company(company_name: str) -> str:
@@ -38,7 +33,7 @@ def _research_company(company_name: str) -> str:
         ]
 
         snippets: list[str] = []
-        with DDGS() as ddgs:
+        with DDGS(timeout=10) as ddgs:
             for query in queries:
                 results = ddgs.text(query, max_results=3)
                 for r in results:
@@ -74,17 +69,12 @@ def _generate_cv(
         company_research=company_research,
     )
 
-    response = client.chat.completions.create(
-        model=settings.model,
+    return llm_client.chat(
+        cv_prompt.SYSTEM,
+        user_prompt,
         temperature=0.4,
         max_tokens=3000,
-        messages=[
-            {"role": "system", "content": cv_prompt.SYSTEM},
-            {"role": "user",   "content": user_prompt},
-        ],
     )
-
-    return response.choices[0].message.content.strip()
 
 def _render_cv(cv_text: str) -> None:
     """Renders the plain text CV in the terminal using Rich formatting."""

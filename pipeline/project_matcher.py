@@ -7,13 +7,8 @@ they differ from the projects already present.
 """
 
 import json
-from openai import OpenAI
-from config import settings
 
-client = OpenAI(
-    base_url="https://models.github.ai/inference",
-    api_key=settings.github_access_token,
-)
+from pipeline import llm_client
 
 _SYSTEM = """\
 You are a technical recruiter selecting the most relevant projects for a Software Engineer resume.
@@ -75,18 +70,12 @@ Select the 2 projects that best match the job description and company context ab
 Return only the JSON schema specified in the system prompt.\
 """
 
-    response = client.chat.completions.create(
-        model=settings.model,
-        response_format={"type": "json_object"},
+    result = llm_client.chat_json(
+        _SYSTEM,
+        user_prompt,
         temperature=0.2,
         max_tokens=512,
-        messages=[
-            {"role": "system", "content": _SYSTEM},
-            {"role": "user",   "content": user_prompt},
-        ],
     )
-
-    result = json.loads(response.choices[0].message.content)
     return result.get("selected_ids", []), result.get("reasoning", {})
 
 
