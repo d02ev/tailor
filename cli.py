@@ -66,6 +66,22 @@ def _print_ats_scores(baseline: dict, post_p1: dict) -> dict:
     return delta
 
 
+def _print_professional_summary(optimized: dict) -> None:
+    summary = (optimized.get("professionalSummary") or "").strip()
+    if not summary:
+        return
+    console.print(Rule("[bold]Professional Summary[/bold]"))
+    console.print(f"  {summary}\n")
+
+
+def _print_llm_stats() -> None:
+    from pipeline import llm_client
+    console.print(
+        f"[dim]LLM calls this run: {llm_client.call_count} "
+        f"(cache hits: {llm_client.cache_hit_count})[/dim]\n"
+    )
+
+
 def _print_review_summary(review: dict, is_jd: bool) -> None:
     console.print(Rule("[bold]Pass 2 Quality Review[/bold]"))
     score  = review["overall_quality_score"]
@@ -77,7 +93,7 @@ def _print_review_summary(review: dict, is_jd: bool) -> None:
         cov = review["ats_keyword_coverage"]
         console.print(
             f"\n  Tier 1 coverage: [green]{cov.get('tier1_present', 0)}[/green] present  ·  "
-            f"[yellow]{cov.get('tier1_partial', 0)}[/yellow] partial  ·  "
+            f"[yellow]{cov.get('tier1_surface', 0)}[/yellow] surface  ·  "
             f"[red]{cov.get('tier1_missing', 0)}[/red] missing  "
             f"(of {cov.get('tier1_total', 0)} total)"
         )
@@ -292,6 +308,7 @@ def optimize(
         console.print(f"[red]Pass 1 failed:[/red] {e}")
         raise typer.Exit(1)
     console.print("[green]✓[/green] Pass 1 complete.\n")
+    _print_professional_summary(optimized)
 
     # ── Step 3b: ATS regression check (JD mode only) ─────────────────────────
     if is_jd:
@@ -390,6 +407,7 @@ def optimize(
         )
 
     console.print("[bold green]✓ Resume published successfully.[/bold green]\n")
+    _print_llm_stats()
 
 
 if __name__ == "__main__":

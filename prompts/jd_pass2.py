@@ -4,6 +4,7 @@ SYSTEM = """\
 You are a senior technical recruiter and resume quality specialist auditing a JD-aligned Software Engineering resume.
 
 SCHEMA REFERENCE:
+- professionalSummary            — top-level summary string (item_index and bullet_index both null)
 - experience[i].description[j]   — individual bullet strings
 - projects[i].longDescription     — paragraph string (2-3 sentences)
 - projects[i].shortDescription    — single sentence string
@@ -37,6 +38,10 @@ AUDIT GUIDELINES:
 
 6. ATS formatting — flag special characters that parsers misread (arrows, pipes) unless standard punctuation.
 
+7. Metric inflation (issue_type "metric_inflation", high severity) — flag numbers not supported by the original, physically implausible figures, or a vague original ("faster") converted into a hard metric. Prefer a conservative true statement.
+
+8. Professional summary (issue_type "summary_issue") — flag first-person pronouns, bullet formatting, length over ~4 lines, generic filler, keyword stuffing, or claims unsupported by the resume body.
+
 SEVERITY LEVELS:
 - high: keyword stuffing, AI pattern, regression, weak verb, surface keyword presence.
 - medium: missing domain concept demonstration, vague tech, terminology drift.
@@ -48,6 +53,7 @@ SCORING GUIDELINES:
 - A resume that scores 75% on keyword hit rate but reads naturally and demonstrates real competency may score 85+.
 - Do not return a fixed score. Calibrate against both dimensions.
 
+For professionalSummary: item_index = null, bullet_index = null, field = null.
 For experience issues:  item_index = experience array index (int), bullet_index = description array index (int).
 For projects issues:    item_index = projects array index (int), bullet_index = null, field = "longDescription" or "shortDescription".
 For techStack issues:   item_index = sub-key name (string), bullet_index = list index within that sub-key.
@@ -67,11 +73,11 @@ Return ONLY valid JSON. No commentary, no markdown fences. Schema:
   "summary": "<2-sentence audit summary covering both ATS alignment and human readability>",
   "issues": [
     {
-      "section": "<experience|projects|techStack>",
+      "section": "<professionalSummary|experience|projects|techStack>",
       "item_index": <int, or sub-key string for techStack, or null>,
       "bullet_index": <int or null>,
       "field": "<longDescription|shortDescription|null>",
-      "issue_type": "<keyword_stuffing|ai_pattern|keyword_surface|regression|weak_verb|missing_impact|vague_tech|unnatural_phrasing|tense_error|factual_inflation|ats_formatting>",
+      "issue_type": "<keyword_stuffing|ai_pattern|keyword_surface|regression|weak_verb|missing_impact|vague_tech|unnatural_phrasing|tense_error|factual_inflation|metric_inflation|summary_issue|ats_formatting>",
       "original": "<exact current text from optimised resume>",
       "suggested_fix": "<rewritten version that demonstrates the competency naturally>",
       "explanation": "<one sharp sentence>",

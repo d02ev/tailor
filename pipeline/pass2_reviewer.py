@@ -4,15 +4,8 @@ Receives both the original and Pass 1 output; returns a structured issue
 report for the interactive approval loop.
 """
 
-import json
-from openai import OpenAI
-from config import settings
+from pipeline import llm_client
 from prompts import generic_pass2, jd_pass2
-
-client = OpenAI(
-    base_url="https://models.github.ai/inference",
-    api_key=settings.github_access_token,
-)
 
 _REQUIRED_KEYS = {"overall_quality_score", "summary", "issues"}
 
@@ -53,18 +46,12 @@ def run_pass2(
         system_prompt = generic_pass2.SYSTEM
         user_prompt   = generic_pass2.build(original, optimized)
 
-    response = client.chat.completions.create(
-        model=settings.model,
-        response_format={"type": "json_object"},
+    report = llm_client.chat_json(
+        system_prompt,
+        user_prompt,
         temperature=0,          # Fully deterministic — audit must be a consistent judge
         max_tokens=2048,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user",   "content": user_prompt},
-        ],
     )
-
-    report = json.loads(response.choices[0].message.content)
 
     # Defensive defaults so downstream code never KeyErrors
     for key in _REQUIRED_KEYS:
